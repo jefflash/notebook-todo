@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notebook — To Do</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E2DDD5;
+    --border-strong: #C8C2B8;
+    --text: #2A2520;
+    --text-secondary: #7A746C;
+    --text-faint: #B0AAA2;
+    --done-text: #B0AAA2;
+    --tab-active-bg: #2A2520;
+    --tab-active-text: #F7F5F0;
+    --danger: #C0392B;
+  }
+
+  body { font-family: 'Lora', Georgia, serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+  .app { max-width: 640px; margin: 0 auto; }
+  .app-title { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-faint); font-family: 'DM Mono', monospace; margin-bottom: 1.75rem; }
+
+  /* ── Top bar ── */
+  .top-bar { display: flex; align-items: center; gap: 5px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+  .cat-label {
+    font-size: 9px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 500; padding: 2px 3px 2px 0; flex-shrink: 0;
+  }
+
+  .book-tab {
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border-strong);
+    font-size: 12px; font-family: 'DM Mono', monospace; cursor: pointer;
+    background: transparent; color: var(--text-secondary); transition: all 0.15s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .book-tab:hover:not(.active) { background: var(--border); }
+  .book-tab.active { background: var(--tab-active-bg); color: var(--tab-active-text); border-color: var(--tab-active-bg); }
+
+  .tab-dot { font-size: 7px; flex-shrink: 0; }
+  .tab-del { display: none; font-size: 14px; line-height: 1; opacity: 0.5; margin-left: 1px; }
+  .book-tab:hover .tab-del, .book-tab.active .tab-del { display: inline; }
+  .tab-del:hover { opacity: 1; color: var(--danger); }
+  .book-tab.active .tab-del:hover { color: #FFAAAA; opacity: 1; }
+
+  .add-cat-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px dashed var(--border-strong);
+    background: transparent; cursor: pointer; color: var(--text-faint); font-size: 13px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .add-cat-btn:hover { color: var(--text); border-color: var(--text); border-style: solid; }
+
+  .cat-sep { width: 1px; height: 18px; background: var(--border-strong); align-self: center; margin: 0 3px; flex-shrink: 0; }
+
+  .add-book-form {
+    display: flex; align-items: center; gap: 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 6px 3px 12px; background: var(--surface);
+  }
+  .add-book-form input {
+    border: none; outline: none; font-family: 'DM Mono', monospace;
+    font-size: 12px; color: var(--text); background: transparent; width: 90px;
+  }
+  .add-book-form input::placeholder { color: var(--text-faint); }
+
+  .view-toggle {
+    margin-left: auto; display: flex; border: 1px solid var(--border-strong);
+    border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  }
+  .view-btn {
+    padding: 5px 11px; font-size: 11px; font-family: 'DM Mono', monospace;
+    border: none; cursor: pointer; background: transparent; color: var(--text-secondary);
+    transition: all 0.15s; display: flex; align-items: center; gap: 4px; white-space: nowrap;
+  }
+  .view-btn.active { background: var(--tab-active-bg); color: var(--tab-active-text); }
+
+  /* ── Content ── */
+  .section-label {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-family: 'DM Mono', monospace; color: var(--text-faint); margin-bottom: 0.6rem; margin-top: 0.25rem;
+  }
+  .add-row { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+  .add-row input {
+    flex: 1; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface); font-size: 14px; font-family: 'Lora', serif;
+    color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  .add-row input::placeholder { color: var(--text-faint); font-style: italic; }
+  .add-row input:focus { border-color: var(--text); }
+  .add-btn {
+    width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface); cursor: pointer; display: flex; align-items: center;
+    justify-content: center; color: var(--text-secondary); font-size: 18px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .add-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* ── Items ── */
+  .item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px;
+    border-radius: 8px; margin-bottom: 3px; border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s; position: relative;
+  }
+  .item:hover { background: var(--surface); border-color: var(--border); }
+  .item.done .item-text { text-decoration: line-through; color: var(--done-text); }
+
+  .check-btn {
+    width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border-strong);
+    background: transparent; cursor: pointer; flex-shrink: 0; margin-top: 2px;
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 12px;
+  }
+  .item.done .check-btn { background: var(--text-faint); border-color: var(--text-faint); color: white; }
+  .check-btn:hover { border-color: var(--text); }
+
+  .item-text { flex: 1; font-size: 14.5px; line-height: 1.5; color: var(--text); }
+
+  .item-edit-input {
+    flex: 1; border: none; border-bottom: 1.5px solid var(--border-strong); outline: none;
+    font-family: 'Lora', serif; font-size: 14.5px; line-height: 1.5;
+    color: var(--text); background: transparent; padding: 0 2px; margin-top: 1px;
+  }
+  .item-edit-input:focus { border-bottom-color: var(--text); }
+
+  .item-actions {
+    display: flex; gap: 2px; opacity: 0; transition: opacity 0.1s;
+    flex-shrink: 0; position: relative;
+  }
+  .item:hover .item-actions, .item-actions.show { opacity: 1; }
+
+  .icon-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 14px; transition: all 0.12s;
+  }
+  .icon-btn:hover { background: var(--border); color: var(--text); }
+  .icon-btn.hl-on { color: var(--text-secondary); background: var(--border); }
+  .icon-btn.del:hover { color: var(--danger); background: #FDECEA; }
+
+  /* ── Highlight picker ── */
+  .hl-picker {
+    position: absolute; right: 0; top: calc(100% + 4px);
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 6px 8px; display: flex; align-items: center; gap: 5px;
+    z-index: 20; box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  }
+  .hl-swatch {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
+    cursor: pointer; transition: transform 0.12s; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 9px;
+  }
+  .hl-swatch:hover { transform: scale(1.3); }
+  .hl-swatch.sel { box-shadow: 0 0 0 2px var(--text); }
+
+  /* ── Completion animation ── */
+  @keyframes strikethrough {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  @keyframes check-pop {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.45); }
+    72%  { transform: scale(0.88); }
+    100% { transform: scale(1); }
+  }
+
+  .item.completing .item-text { position: relative; }
+  .item.completing .item-text::after {
+    content: ''; position: absolute; left: 0; top: 50%;
+    width: 100%; height: 4.5px; background: #000;
+    transform: scaleX(0); transform-origin: left center;
+    animation: strikethrough 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .item.completing .check-btn {
+    background: #D1FAE5; border-color: #34D399; color: #059669;
+    animation: check-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  /* ── Aggregate views ── */
+  .agg-book-group { margin-bottom: 0.5rem; }
+  .agg-book-header {
+    font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 0.5rem; margin-top: 1.25rem; padding-left: 10px;
+  }
+  .cat-section-header {
+    font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 0.10em;
+    text-transform: uppercase; font-weight: 500;
+    padding: 1rem 10px 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border);
+  }
+  .cat-section-header.first { border-top: none; margin-top: 0; padding-top: 0; }
+
+  .divider { height: 1px; background: var(--border); margin: 1.25rem 0 1rem; }
+  .empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-faint); font-size: 14px; font-style: italic; }
+  .empty i { font-size: 28px; display: block; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="app-title">Notebook</div>
+  <div id="root"></div>
+</div>
+<script>
+const STORAGE_KEY = 'notebook_todo_v2';
+const CAT_COLORS = { personal: '#8B5E3C', work: '#3B6D8B' };
+const HIGHLIGHTS = [
+  { id: 'yellow', bg: '#FFF3CD', border: '#E8C84A' },
+  { id: 'rose',   bg: '#FFE4E6', border: '#FB7185' },
+  { id: 'blue',   bg: '#DBEAFE', border: '#60A5FA' },
+  { id: 'green',  bg: '#D1FAE5', border: '#34D399' },
+  { id: 'purple', bg: '#EDE9FE', border: '#A78BFA' },
+];
+
+let state = {
+  activeBookId: 1,
+  view: 'book',
+  books: [
+    { id: 1, name: 'Personal', category: 'personal' },
+    { id: 2, name: 'Work', category: 'work' },
+  ],
+  items: [],
+  nextId: 1,
+  nextBookId: 3,
+};
+
+let ui = {
+  addingBook: false, newBookName: '', newBookCat: 'personal',
+  hlPicker: null, completing: null,
+  editingId: null, editText: '',
+};
+
+function load() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) state = JSON.parse(r); } catch(e) {}
+  render();
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+function today() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+function getActiveBook() {
+  return state.books.find(b => b.id === state.activeBookId) || state.books[0];
+}
+
+function setBook(id) {
+  state.activeBookId = id; state.view = 'book';
+  ui.editingId = null; ui.hlPicker = null;
+  save(); render();
+}
+
+function startAddBook(cat) {
+  ui.addingBook = true; ui.newBookName = ''; ui.newBookCat = cat;
+  render();
+  const el = document.getElementById('new-book-input');
+  if (el) el.focus();
+}
+
+function confirmAddBook() {
+  const name = ui.newBookName.trim();
+  if (!name) return;
+  const book = { id: state.nextBookId++, name, category: ui.newBookCat };
+  state.books.push(book);
+  state.activeBookId = book.id; state.view = 'book';
+  ui.addingBook = false;
+  save(); render();
+}
+
+function handleBookKey(e) {
+  if (e.key === 'Enter') confirmAddBook();
+  if (e.key === 'Escape') { ui.addingBook = false; render(); }
+}
+
+function deleteBook(id) {
+  if (state.books.length <= 1) { alert('You need at least one book.'); return; }
+  const book = state.books.find(b => b.id === id);
+  if (!book) return;
+  const n = state.items.filter(i => i.bookId === id).length;
+  if (!confirm(n > 0 ? `Delete "${book.name}" and its ${n} item${n===1?'':'s'}?` : `Delete "${book.name}"?`)) return;
+  state.books = state.books.filter(b => b.id !== id);
+  state.items = state.items.filter(i => i.bookId !== id);
+  if (state.activeBookId === id) { state.activeBookId = state.books[0].id; state.view = 'book'; }
+  save(); render();
+}
+
+function addItem(text) {
+  if (!text.trim()) return;
+  state.items.push({ id: state.nextId++, bookId: getActiveBook().id, text: text.trim(), done: false, hl: null });
+  save(); render();
+}
+
+function handleCheckClick(id) {
+  if (ui.completing === id) return;
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  if (it.done) { it.done = false; save(); render(); return; }
+  ui.completing = id;
+  render();
+  setTimeout(() => {
+    const item = state.items.find(i => i.id === id);
+    if (item && !item.done) { item.done = true; save(); }
+    ui.completing = null;
+    render();
+  }, 600);
+}
+
+function togglePicker(id) {
+  ui.hlPicker = ui.hlPicker === id ? null : id;
+  render();
+}
+function setHl(id, color) {
+  const it = state.items.find(i => i.id === id);
+  if (it) { it.hl = color; save(); }
+  ui.hlPicker = null; render();
+}
+
+function deleteItem(id) {
+  if (!confirm('Delete this item?')) return;
+  state.items = state.items.filter(i => i.id !== id);
+  save(); render();
+}
+
+function startEdit(id) {
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  ui.editingId = id; ui.editText = it.text; ui.hlPicker = null;
+  render();
+}
+function saveEdit(id) {
+  if (ui.editingId !== id) return;
+  const text = ui.editText.trim();
+  if (text) { const it = state.items.find(i => i.id === id); if (it) { it.text = text; save(); } }
+  ui.editingId = null; render();
+}
+function cancelEdit() { ui.editingId = null; render(); }
+function handleEditKey(e, id) {
+  if (e.key === 'Enter') { e.preventDefault(); saveEdit(id); }
+  if (e.key === 'Escape') cancelEdit();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function pickerHTML(it) {
+  return `<div class="hl-picker" onclick="event.stopPropagation()">
+    <button class="hl-swatch${!it.hl?' sel':''}" style="background:var(--border);color:var(--text-secondary)" onclick="setHl(${it.id},null)" title="None">×</button>
+    ${HIGHLIGHTS.map(h=>`<button class="hl-swatch${it.hl===h.id?' sel':''}" style="background:${h.bg};border-color:${h.border}66" onclick="setHl(${it.id},'${h.id}')" title="${h.id}"></button>`).join('')}
+  </div>`;
+}
+
+function itemHTML(it) {
+  const hl = HIGHLIGHTS.find(h => h.id === it.hl);
+  const hlStyle = hl ? `background:${hl.bg};border-color:${hl.border};` : '';
+  const isCompleting = ui.completing === it.id;
+  const isEditing = ui.editingId === it.id;
+
+  if (isEditing) {
+    return `<div class="item" style="${hlStyle}">
+      <div style="width:20px;flex-shrink:0;margin-top:2px"></div>
+      <input id="edit-input-${it.id}" class="item-edit-input" type="text" value="${escHtml(ui.editText)}"
+        oninput="ui.editText=this.value"
+        onkeydown="handleEditKey(event,${it.id})"
+        onblur="saveEdit(${it.id})"
+        onclick="event.stopPropagation()">
+      <div class="item-actions show">
+        <button class="icon-btn" onmousedown="event.preventDefault();saveEdit(${it.id})" title="Save"><i class="ti ti-check"></i></button>
+        <button class="icon-btn" onmousedown="event.preventDefault();cancelEdit()" title="Cancel"><i class="ti ti-x"></i></button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="item${it.done?' done':''}${isCompleting?' completing':''}" style="${hlStyle}">
+    <button class="check-btn" onclick="handleCheckClick(${it.id})" title="${it.done?'Reopen':'Complete'}">
+      ${it.done||isCompleting?'<i class="ti ti-check" aria-hidden="true"></i>':''}
+    </button>
+    <span class="item-text">${escHtml(it.text)}</span>
+    <div class="item-actions">
+      <button class="icon-btn" onclick="startEdit(${it.id})" title="Edit"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <button class="icon-btn${it.hl?' hl-on':''}" onclick="event.stopPropagation();togglePicker(${it.id})" title="Highlight"><i class="ti ti-highlight" aria-hidden="true"></i></button>
+      ${ui.hlPicker===it.id?pickerHTML(it):''}
+      <button class="icon-btn del" onclick="deleteItem(${it.id})" title="Delete"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </div>
+  </div>`;
+}
+
+function bookGroupHTML(items) {
+  const open = items.filter(i => !i.done);
+  const done = items.filter(i => i.done);
+  let h = '';
+  open.forEach(it => { h += itemHTML(it); });
+  if (done.length) {
+    h += `<div class="divider"></div><div class="section-label">Completed</div>`;
+    done.forEach(it => { h += itemHTML(it); });
+  }
+  return h;
+}
+
+function render() {
+  const book = getActiveBook();
+  const isBook = state.view === 'book';
+  let html = '';
+
+  // ── Top bar ──
+  html += '<div class="top-bar">';
+
+  ['personal', 'work'].forEach((cat, ci) => {
+    const catBooks = state.books.filter(b => b.category === cat);
+    if (ci > 0) html += '<div class="cat-sep"></div>';
+    html += `<span class="cat-label" style="color:${CAT_COLORS[cat]}">${cat==='personal'?'Personal':'Work'}</span>`;
+
+    catBooks.forEach(b => {
+      const isActive = isBook && b.id === state.activeBookId;
+      const dotColor = isActive ? 'rgba(247,245,240,0.5)' : CAT_COLORS[cat];
+      html += `<button class="book-tab${isActive?' active':''}" onclick="setBook(${b.id})">
+        <span class="tab-dot" style="color:${dotColor}">●</span>${escHtml(b.name)}<span class="tab-del" onclick="event.stopPropagation();deleteBook(${b.id})" title="Delete">×</span>
+      </button>`;
+    });
+
+    if (ui.addingBook && ui.newBookCat === cat) {
+      html += `<div class="add-book-form">
+        <input id="new-book-input" type="text" placeholder="Book name…"
+          oninput="ui.newBookName=this.value" onkeydown="handleBookKey(event)">
+        <button class="icon-btn" onclick="confirmAddBook()" title="Create"><i class="ti ti-check"></i></button>
+        <button class="icon-btn" onclick="ui.addingBook=false;render()" title="Cancel"><i class="ti ti-x"></i></button>
+      </div>`;
+    } else if (!ui.addingBook) {
+      html += `<button class="add-cat-btn" onclick="startAddBook('${cat}')" title="New ${cat} book"><i class="ti ti-plus"></i></button>`;
+    }
+  });
+
+  html += `<div class="view-toggle">
+    <button class="view-btn${state.view==='work'?' active':''}" onclick="state.view='work';save();render()">Work</button>
+    <button class="view-btn${state.view==='personal'?' active':''}" onclick="state.view='personal';save();render()">Personal</button>
+    <button class="view-btn${state.view==='all'?' active':''}" onclick="state.view='all';save();render()"><i class="ti ti-bolt"></i> All</button>
+  </div>`;
+  html += '</div>';
+
+  // ── Content ──
+  if (isBook) {
+    const bookItems = state.items.filter(i => i.bookId === book.id);
+    html += `<div class="section-label">${today()}</div>`;
+    html += `<div class="add-row">
+      <input type="text" id="new-item" placeholder="Add an item…"
+        onkeydown="if(event.key==='Enter'){const v=this.value;this.value='';addItem(v)}">
+      <button class="add-btn" onclick="const el=document.getElementById('new-item');const v=el.value;el.value='';addItem(v)" aria-label="Add item">
+        <i class="ti ti-plus" aria-hidden="true"></i>
+      </button>
+    </div>`;
+    if (bookItems.length === 0) {
+      html += `<div class="empty"><i class="ti ti-notebook"></i>Nothing here yet. Add your first item above.</div>`;
+    } else {
+      html += bookGroupHTML(bookItems);
+    }
+  } else {
+    const cats = state.view === 'work' ? ['work'] : state.view === 'personal' ? ['personal'] : ['personal','work'];
+    let hasAny = false, firstCat = true;
+
+    cats.forEach(cat => {
+      const catBooks = state.books.filter(b => b.category === cat);
+      const catItems = state.items.filter(i => catBooks.some(b => b.id === i.bookId));
+      if (!catItems.length) return;
+
+      if (state.view === 'all') {
+        html += `<div class="cat-section-header${firstCat?' first':''}" style="color:${CAT_COLORS[cat]}">${cat==='personal'?'Personal':'Work'}</div>`;
+        firstCat = false;
+      }
+
+      catBooks.forEach(b => {
+        const bItems = state.items.filter(i => i.bookId === b.id);
+        if (!bItems.length) return;
+        hasAny = true;
+        html += `<div class="agg-book-group">
+          <div class="agg-book-header" style="color:${CAT_COLORS[b.category]}">${escHtml(b.name)}</div>
+          ${bookGroupHTML(bItems)}
+        </div>`;
+      });
+    });
+
+    if (!hasAny) html += `<div class="empty"><i class="ti ti-circle-check"></i>Nothing here yet.</div>`;
+  }
+
+  document.getElementById('root').innerHTML = html;
+
+  if (isBook && !ui.editingId) { const inp = document.getElementById('new-item'); if (inp) inp.focus(); }
+  if (ui.addingBook) { const el = document.getElementById('new-book-input'); if (el) { el.focus(); el.value = ui.newBookName; } }
+  if (ui.editingId !== null) { const el = document.getElementById('edit-input-' + ui.editingId); if (el) { el.focus(); el.select(); } }
+}
+
+document.addEventListener('click', () => {
+  if (ui.hlPicker !== null) { ui.hlPicker = null; render(); }
+});
+
+load();
+</script>
+</body>
+</html>
