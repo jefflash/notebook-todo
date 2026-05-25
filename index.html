@@ -680,7 +680,7 @@ async function parseVoice(transcript) {
     const res = await fetch('/api/parse-voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript, today: todayStr() }),
     });
     if (!res.ok) throw new Error('api error');
     const data = await res.json();

@@ -1,13 +1,13 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { transcript } = req.body || {};
+  const { transcript, today } = req.body || {};
   if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = today || new Date().toISOString().split('T')[0];
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
