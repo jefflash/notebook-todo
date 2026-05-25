@@ -461,7 +461,6 @@ function getBook(id) { return state.books.find(b => b.id === id); }
 function setNav(navId) {
   state.activeNav = navId;
   ui.editingId = null; ui.hlPicker = null;
-  ui.suggestion = null; ui.suggestionLoading = false; ui.suggestionError = '';
   if (navId.startsWith('book:')) {
     ui.formBookId = parseInt(navId.slice(5));
   } else if (navId.startsWith('cat:')) {
