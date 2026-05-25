@@ -255,6 +255,44 @@ body { font-family: 'Lora', Georgia, serif; background: var(--bg); color: var(--
 .empty { text-align: center; padding: 3rem 1rem; color: var(--text-faint); font-size: 14px; font-style: italic; }
 .empty i { font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.5; }
 
+/* ── Where should I start ── */
+.suggest-btn {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.03em;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  padding: 8px 18px; background: var(--surface);
+  color: var(--text-secondary); cursor: pointer;
+  transition: all 0.15s; margin-bottom: 1.25rem;
+}
+.suggest-btn:hover:not(:disabled) { background: var(--text); color: var(--bg); border-color: var(--text); }
+.suggest-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.suggest-btn i { font-size: 14px; }
+
+.suggestion-panel {
+  background: #FFFBF0; border: 1px solid #E8C84A;
+  border-radius: 10px; padding: 16px 42px 16px 18px;
+  margin-bottom: 1.25rem; position: relative;
+}
+.suggestion-eyebrow {
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace; color: #A0832A;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 5px;
+}
+.suggestion-task {
+  font-size: 15px; font-family: 'Lora', serif;
+  color: var(--text); font-weight: 500; margin-bottom: 8px;
+}
+.suggestion-reason {
+  font-size: 13px; font-family: 'Lora', serif;
+  color: var(--text-secondary); line-height: 1.65; font-style: italic;
+}
+.suggestion-dismiss {
+  position: absolute; top: 12px; right: 12px;
+  background: none; border: none; cursor: pointer;
+  color: #C8A83A; font-size: 14px; transition: color 0.1s; line-height: 1;
+}
+.suggestion-dismiss:hover { color: var(--text); }
+
 /* ── Day group headers ── */
 .day-group-header {
   display: flex; align-items: center; gap: 10px;
@@ -324,6 +362,7 @@ let ui = {
   addingBookCat: null, newBookName: '',
   formTask: '', formNotes: '', formDue: '', formPriority: 0, formBookId: null,
   voiceActive: false, voiceProcessing: false, voiceMsg: '', voiceIsError: false,
+  suggestion: null, suggestionLoading: false, suggestionError: '',
 };
 
 // ── Persistence & migration ──
@@ -422,6 +461,7 @@ function getBook(id) { return state.books.find(b => b.id === id); }
 function setNav(navId) {
   state.activeNav = navId;
   ui.editingId = null; ui.hlPicker = null;
+  ui.suggestion = null; ui.suggestionLoading = false; ui.suggestionError = '';
   if (navId.startsWith('book:')) {
     ui.formBookId = parseInt(navId.slice(5));
   } else if (navId.startsWith('cat:')) {
@@ -659,6 +699,45 @@ async function parseVoice(transcript) {
   }
 }
 
+// ── Where should I start ──
+async function fetchSuggestion() {
+  const allTasks = state.items.filter(i => !i.done);
+  if (!allTasks.length) return;
+
+  ui.suggestionLoading = true; ui.suggestion = null; ui.suggestionError = '';
+  render();
+
+  const t = todayStr();
+  const tom = tomorrowStr();
+  const tasks = allTasks.map(i => {
+    let dueLabel = null;
+    if (i.dueDate) {
+      if (i.dueDate < t)      dueLabel = `OVERDUE since ${i.dueDate}`;
+      else if (i.dueDate === t)   dueLabel = 'due today';
+      else if (i.dueDate === tom) dueLabel = 'due tomorrow';
+      else                        dueLabel = `due ${i.dueDate}`;
+    }
+    return { text: i.text, notes: i.notes || '', priority: i.priority || 0, dueLabel };
+  });
+
+  try {
+    const res = await fetch('/api/suggest-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tasks, today: t }),
+    });
+    if (!res.ok) throw new Error('api error');
+    const data = await res.json();
+    ui.suggestion = { task: data.task, reason: data.reason };
+    ui.suggestionLoading = false;
+    render();
+  } catch(e) {
+    ui.suggestionLoading = false;
+    ui.suggestionError = 'Could not get a suggestion. Try again.';
+    render();
+  }
+}
+
 // ── Render: Sidebar ──
 function renderSidebar() {
   const nav = state.activeNav;
@@ -809,6 +888,23 @@ function renderMain() {
   </div>`;
 
   if (nav !== 'completed') h += renderAddForm();
+
+  if (nav !== 'completed') {
+    const pendingCount = state.items.filter(i => !i.done).length;
+    if (ui.suggestionLoading) {
+      h += `<button class="suggest-btn" disabled><i class="ti ti-sparkles"></i>Thinking…</button>`;
+    } else if (ui.suggestion) {
+      h += `<div class="suggestion-panel">
+        <button class="suggestion-dismiss" onclick="ui.suggestion=null;render()" title="Dismiss"><i class="ti ti-x"></i></button>
+        <div class="suggestion-eyebrow"><i class="ti ti-sparkles"></i>Where should I start?</div>
+        <div class="suggestion-task">${escHtml(ui.suggestion.task)}</div>
+        <div class="suggestion-reason">${escHtml(ui.suggestion.reason)}</div>
+      </div>`;
+    } else if (pendingCount > 0) {
+      h += `<button class="suggest-btn" onclick="fetchSuggestion()"><i class="ti ti-sparkles"></i>Where should I start?</button>`;
+      if (ui.suggestionError) h += `<div class="voice-status error" style="margin-top:-0.75rem;margin-bottom:1rem">${escHtml(ui.suggestionError)}</div>`;
+    }
+  }
 
   const emptyMsgs = {
     all: ['ti-notebook', 'Nothing here yet. Add your first task above.'],
