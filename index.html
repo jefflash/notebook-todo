@@ -195,7 +195,7 @@ body { font-family: 'Lora', Georgia, serif; background: var(--bg); color: var(--
 .item-notes { font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); display: block; margin-top: 2px; font-style: italic; }
 
 .item-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
-.item-book-tag { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
+.item-book-tag { font-size: 11.5px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; font-weight: 500; }
 .item-date { font-size: 10.5px; font-family: 'DM Mono', monospace; color: var(--text-faint); display: flex; align-items: center; gap: 3px; }
 .item-date.overdue { color: var(--danger); font-weight: 500; }
 .item-date i { font-size: 11px; }
@@ -254,6 +254,19 @@ body { font-family: 'Lora', Georgia, serif; background: var(--bg); color: var(--
 .divider { height: 1px; background: var(--border); margin: 1rem 0 0.75rem; }
 .empty { text-align: center; padding: 3rem 1rem; color: var(--text-faint); font-size: 14px; font-style: italic; }
 .empty i { font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.5; }
+
+/* ── Day group headers ── */
+.day-group-header {
+  display: flex; align-items: center; gap: 10px;
+  margin: 1.5rem 0 0.4rem;
+}
+.day-group-header.first { margin-top: 0; }
+.day-group-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.day-group-label {
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace; color: var(--text-secondary); white-space: nowrap; font-weight: 500;
+}
+.day-group-label.overdue { color: var(--danger); }
 
 /* ── Completing animation ── */
 @keyframes strikethrough { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -342,16 +355,61 @@ function save() {
 }
 
 // ── Utilities ──
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayStr() { return localDateStr(new Date()); }
+function tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return localDateStr(d); }
 function todayLabel() { return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
 
 function formatDate(d) {
   if (!d) return '';
-  const t = todayStr();
-  const tom = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  if (d === t) return 'Today';
-  if (d === tom) return 'Tomorrow';
+  if (d === todayStr()) return 'Today';
+  if (d === tomorrowStr()) return 'Tomorrow';
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatDateSection(d) {
+  if (d === todayStr()) return 'Today';
+  if (d === tomorrowStr()) return 'Tomorrow';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function byPriority(arr) {
+  return [...arr].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+}
+
+function renderGroupedItems(items, nav) {
+  const t = todayStr();
+  const overdue  = items.filter(i => i.dueDate && i.dueDate < t);
+  const withDate = items.filter(i => i.dueDate && i.dueDate >= t);
+  const noDate   = items.filter(i => !i.dueDate);
+
+  const byDate = {};
+  withDate.forEach(i => { if (!byDate[i.dueDate]) byDate[i.dueDate] = []; byDate[i.dueDate].push(i); });
+  const sortedDates = Object.keys(byDate).sort();
+
+  let h = '';
+  let isFirst = true;
+
+  if (overdue.length > 0) {
+    h += `<div class="day-group-header${isFirst ? ' first' : ''}"><span class="day-group-label overdue">Overdue</span></div>`;
+    isFirst = false;
+    byPriority(overdue).forEach(i => { h += itemHTML(i, true); });
+  }
+
+  sortedDates.forEach(date => {
+    h += `<div class="day-group-header${isFirst ? ' first' : ''}"><span class="day-group-label">${escHtml(formatDateSection(date))}</span></div>`;
+    isFirst = false;
+    byPriority(byDate[date]).forEach(i => { h += itemHTML(i, true); });
+  });
+
+  if (nav !== 'upcoming' && noDate.length > 0) {
+    h += `<div class="day-group-header${isFirst ? ' first' : ''}"><span class="day-group-label">No Due Date</span></div>`;
+    byPriority(noDate).forEach(i => { h += itemHTML(i, true); });
+  }
+
+  return h;
 }
 
 function escHtml(s) {
@@ -377,7 +435,7 @@ function setNav(navId) {
 function getNavTitle() {
   const n = state.activeNav;
   if (n === 'all') return 'All Tasks';
-  if (n === 'starred') return 'Starred';
+  if (n === 'starred') return 'High Priority';
   if (n === 'today') return 'Today';
   if (n === 'upcoming') return 'Upcoming';
   if (n === 'completed') return 'Completed';
@@ -393,8 +451,8 @@ function getFilteredItems() {
   let items = state.items;
 
   if (n === 'all')            items = items.filter(i => !i.done);
-  else if (n === 'starred')   items = items.filter(i => !i.done && (i.priority || 0) > 0);
-  else if (n === 'today')     items = items.filter(i => !i.done && i.dueDate === t);
+  else if (n === 'starred')   items = items.filter(i => !i.done && (i.priority || 0) >= 3);
+  else if (n === 'today')     items = items.filter(i => !i.done && i.dueDate && i.dueDate <= t);
   else if (n === 'upcoming')  items = items.filter(i => !i.done && i.dueDate && i.dueDate > t);
   else if (n === 'completed') items = items.filter(i => i.done);
   else if (n.startsWith('cat:')) {
@@ -405,15 +463,10 @@ function getFilteredItems() {
     items = items.filter(i => i.bookId === bookId && !i.done);
   }
 
-  if (state.sortBy === 'priority') {
-    return [...items].sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  }
-  if (state.sortBy === 'dueDate') {
+  if (n === 'today') {
     return [...items].sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return a.dueDate.localeCompare(b.dueDate);
+      if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+      return (b.priority || 0) - (a.priority || 0);
     });
   }
   return items;
@@ -611,7 +664,7 @@ function renderSidebar() {
   const nav = state.activeNav;
   const views = [
     { id: 'all',       icon: 'ti-list',          label: 'All Tasks' },
-    { id: 'starred',   icon: 'ti-star',           label: 'Starred' },
+    { id: 'starred',   icon: 'ti-stars',          label: 'High Priority' },
     { id: 'today',     icon: 'ti-calendar-event', label: 'Today' },
     { id: 'upcoming',  icon: 'ti-calendar-due',   label: 'Upcoming' },
     { id: 'completed', icon: 'ti-circle-check',   label: 'Completed' },
@@ -628,7 +681,7 @@ function renderSidebar() {
     const catId = `cat:${cat}`;
     const label = cat[0].toUpperCase() + cat.slice(1);
     h += `<div class="nav-cat-row">
-      <button class="nav-item${nav === catId ? ' active' : ''}" onclick="setNav('${catId}')" style="${nav !== catId ? `color:${CAT_COLORS[cat]}` : ''}">
+      <button class="nav-item${nav === catId ? ' active' : ''}" onclick="setNav('${catId}')" style="${nav !== catId ? `color:${CAT_COLORS[cat]};font-weight:600` : ''}">
         <i class="ti ti-folder"></i>${label}
       </button>
       <button class="nav-add-btn" onclick="startAddBook('${cat}')" title="New ${label} book"><i class="ti ti-plus"></i></button>
@@ -686,7 +739,7 @@ function renderAddForm() {
 }
 
 // ── Render: Item ──
-function itemHTML(it) {
+function itemHTML(it, hideDue) {
   const hl = HIGHLIGHTS.find(h => h.id === it.hl);
   const hlStyle = hl ? `background:${hl.bg};border-color:${hl.border};` : '';
   const isCompleting = ui.completing === it.id;
@@ -731,7 +784,7 @@ function itemHTML(it) {
       ${it.notes ? `<span class="item-notes">${escHtml(it.notes)}</span>` : ''}
       <div class="item-meta">
         <span class="item-book-tag" style="color:${CAT_COLORS[cat]}">${escHtml(book?.name || '')}</span>
-        ${it.dueDate ? `<span class="item-date${isOverdue?' overdue':''}"><i class="ti ti-calendar-event"></i>${formatDate(it.dueDate)}</span>` : ''}
+        ${it.dueDate && !hideDue ? `<span class="item-date${isOverdue?' overdue':''}"><i class="ti ti-calendar-event"></i>${formatDate(it.dueDate)}</span>` : ''}
         ${itemStarsHTML(it)}
       </div>
     </div>
@@ -753,21 +806,13 @@ function renderMain() {
   let h = `<div class="main-header">
     <span class="main-title">${escHtml(title)}</span>
     ${nav === 'today' ? `<span class="date-label">${todayLabel()}</span>` : ''}
-    <div class="sort-row">
-      <span class="sort-label">Sort:</span>
-      <select class="sort-select" onchange="state.sortBy=this.value;save();render()">
-        <option value="none"${state.sortBy==='none'?' selected':''}>Default</option>
-        <option value="priority"${state.sortBy==='priority'?' selected':''}>Priority</option>
-        <option value="dueDate"${state.sortBy==='dueDate'?' selected':''}>Due Date</option>
-      </select>
-    </div>
   </div>`;
 
   if (nav !== 'completed') h += renderAddForm();
 
   const emptyMsgs = {
     all: ['ti-notebook', 'Nothing here yet. Add your first task above.'],
-    starred: ['ti-star', 'No starred tasks.'],
+    starred: ['ti-stars', 'No high priority tasks.'],
     today: ['ti-calendar-event', 'Nothing due today.'],
     upcoming: ['ti-calendar-due', 'No upcoming tasks.'],
     completed: ['ti-circle-check', 'No completed tasks yet.'],
@@ -776,6 +821,8 @@ function renderMain() {
   if (items.length === 0) {
     const [icon, msg] = emptyMsgs[nav] || ['ti-notebook', 'Nothing here yet.'];
     h += `<div class="empty"><i class="ti ${icon}"></i>${msg}</div>`;
+  } else if (nav === 'all' || nav === 'starred' || nav === 'upcoming') {
+    h += renderGroupedItems(items, nav);
   } else {
     items.forEach(it => { h += itemHTML(it); });
   }
